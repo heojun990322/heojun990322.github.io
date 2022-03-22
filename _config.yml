@@ -104,7 +104,7 @@ analytics:
 author:
   name             : "허준"
   avatar           : # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
-  bio              : "안녕하세요! 결과로 증명할 수 있는 개발자가 되고싶습니다"
+  bio              : "안녕하세요!<br>결과로 증명할 수 있는 개발자가 되고싶습니다"
   location         : "Yongin, South Korea"
   email            : "heojun990322@gmail.com"
   links:
@@ -283,8 +283,17 @@ defaults:
       type: posts
     values:
       layout: single
-      author_profile: true
-      read_time: true
-      comments: # true
+      author_profile: #true
+      read_time: # true
+      comments: true
       share: true
       related: true
+      show_date: true
+  
+  # _pages
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: single
+      author_profile: true
