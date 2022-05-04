@@ -522,5 +522,186 @@ while True:
 
 - **코드 분석**
 
+    1. 서버 연결 요청 준비와 로그인 데이터, 코드 
+
+        ```python
+        from multiprocessing.dummy import connection
+        from socket import *
+        serverAddress = '127.0.0.1' # 서버 주소, 루프백 사용
+        serverPort = 9999 # 서버 포트 번호
+        serverSocket = socket(AF_INET, SOCK_STREAM) # 클라이언트 소켓 생성, IPv4 사용, TCP 사용
+        serverSocket.bind((serverAddress, serverPort)) # 포트를 서버 소켓에 바인딩
+        serverSocket.listen(1) # 클라이언트 요청 대기, 최대 연결 가능 수 = 1
+        print("Server is ready to receive")
+
+        code = 0
+        loginData = {} # id와 pw 정보 데이터
+        loginCode = {1:'Success', 2:'WrongId', 3:'WrongPw', 4:'Login', 5:'Register', 6:'ChangePw'} # login과 관련된 메시지에 매핑된 코드
+        ```
+
+        serverSocket에 TCP 연결을 위한 socket을 생성한다. 그리고 bind method로 serverPort를 소켓에 할당한다. 바인딩된 소켓은 listen method 이후 클라이언트의 TCP 연결 요청을 듣기 시작한다. loginData는 ID를 key로 사용하고 PW를 value로 사용하는 딕셔너리 이다. loginCode는 로그인 메시지를 value로 갖는 code들의 딕셔너리이다. 
+
+    2. 로그인과 등록 중 선택
+
+        ```python
+        connectionSocket, address = serverSocket.accept() # 연결 요청이 들어오면 연결 소켓을 생성하고 주소를 리턴
+
+        # 로그인과 등록 중 선택
+        loginMsg = connectionSocket.recv(1024).decode()
+        if loginMsg == 'Login': # 로그인인 경우
+            code = 4
+        elif loginMsg == 'Register': # 등록인 경우
+            code = 5    
+        ```
+
+        클라이언트의 TCP 연결 요청이 오면 accept method로 클라이언트 소켓과 TCP 연결된 connectionSocket을 생성한다. 처음 클라이언트는 로그인과 등록 중 하나를 선택하는데 선택 후 로그인 메시지를 서버에게 전송한다. 서버는 수신한 로그인 메시지를 loginMsg에 저장하고 값에 따라 code를 설정한다. 
+
+    3.  code의 value를 확인하는 무한 loop
+
+        ```python
+        if loginCode[code] == 'Success': # 로그인 성공한 경우
+            connectionSocket.close()
+            break    
+        ```
+
+        code의 value가 Success인 경우 connectionSoket을 close method로 닫고 break를 이용해 loop를 탈출한다.
+
+        ```python
+        elif loginCode[code] == 'Login': # 로그인 시도
+            inputId = connectionSocket.recv(1024).decode() # 입력한 id 수신
+            inputPw = connectionSocket.recv(1024).decode() # 입력한 pw 수신
+            code = CheckLoginData(connectionSocket, inputId, inputPw) # id와 pw 확인
+        elif loginCode[code] == 'Register': # 등록하는 경우
+            inputId = connectionSocket.recv(1024).decode() # 입력한 id 수신
+            inputPw = connectionSocket.recv(1024).decode() # 입력한 pw 수신
+            code = Register(connectionSocket, inputId, inputPw)
+        elif loginCode[code] == 'ChangePw': # 비밀번호를 변경하는 경우
+            inputFirstPw = connectionSocket.recv(1024).decode() # 입력한 새로운 pw 수신
+            inputSecondPw = connectionSocket.recv(1024).decode() # 입력한 확인 pw 수신
+            code = ChangePw(connectionSocket, inputId, inputFirstPw, inputSecondPw)        
+        ```
+
+        code의 value가 Login, Register, ChangePw 중 하나라면 클라이언트가 입력한 id나 pw를 수신하고 CheckLoginData, Register, ChangePw method 중 하나를 호출 하여 code를 재설정 한다. 
+
+        ```python
+        def CheckLoginData(connectionSocket, inputId, inputPw): # id와 pw 확인
+            try:
+                if inputPw == loginData[inputId]: # 입력한 id가 데이터에 존재하고 pw가 일치하는 경우
+                    connectionSocket.send(loginCode[1].encode())
+                    return 1
+                else: # 입력한 id가 데이터에 존재하지만 pw가 일치하지 않는 경우
+                    connectionSocket.send(loginCode[3].encode())
+                    return 3
+            except KeyError as e: # 입력한 id가 데이터에 존재하지 않는 경우
+                connectionSocket.send(loginCode[2].encode())
+                return 2
+        ```
+
+        CheckLoginData는 Login이 code의 value일 때 호출된다. 입력한 id가 존재하고 pw가 일치하면 Success 메시지를 클라이언트에게 전송하고 code는 1을 return한다. pw가 일치하지 않는 경우에는 WrongPw 메시지를 클라이언트에게 전송하고 code는 3을 return 한다. id가 loginData에 존재하지 않으면 WrongId를 클라이언트에게 전송하고 code는 2를 return한다.
+
+        ```python
+        def Register(connectionSocket, inputId, inputPw): # id와 pw 등록
+            if inputId in loginData: # 입력한 id가 있는 id인 경우
+                connectionSocket.send(loginCode[5].encode())
+                return 5
+    
+            # 입력한 id가 새로운 id인 경우
+            loginData[inputId] = inputPw 
+            connectionSocket.send(loginCode[4].encode())
+            return 4
+        ```
+
+        Register method는 Register가 value인 code일 때 호출된다. 입력한 id가 loginData에 있는지 먼저 확인한다. 이 때 존재하면 Register를 클라이언트에게 전송하고 code는 5를 return하여 등록을 다시 시도하게 한다. 입력한 id가 신규 id면 loginData에 id와 pw를 추가하고 클라이언트에게 Login 메시지를 전송한다. code는 4를 return하여 로그인 시도를 하게 한다.
+
+        ```python
+        def ChangePw(connectionSocket, inputId, inputFirstPw, inputSecondPw): # pw 변경
+            if inputFirstPw != inputSecondPw: # 처음 입력한 pw와 확인 pw가 다른 경우
+                connectionSocket.send(loginCode[6].encode())
+                return 6
+
+            # 처음 입력한 pw와 확인 pw가 같은 경우
+            loginData[inputId] = inputFirstPw
+            connectionSocket.send(loginCode[4].encode())
+            return 4
+        ```
+
+        ChangePw method는 code의 value가 ChangePw일 때 호출된다. 새로 입력한 pw와 확인용으로 다시 입력한 pw를 비교했을 때 다르면 ChangPw 메시지를 클라이언트에게 전송한다. code는 6을 return 한여 비밀번호 변경을 다시 시도하게 한다. 만약 입력한 pw가 다르지 않다면 전에 입력한 id의 pw를 변경한다. 변경 후 Login 메시지를 전송하고 code는 4를 return하여 로그인을 다시 시도하게 한다.
+
+        ```python
+        elif loginCode[code] == 'WrongId': # id가 잘못된 경우
+            loginMsg = connectionSocket.recv(1024).decode()
+
+            if loginMsg == 'Login': # 로그인인 경우
+                code = 4
+            elif loginMsg == 'Register': # 등록인 경우
+                code = 5        
+        ```
+
+        code의 value가 WrongId인 경우 클라이언트가 로그인을 다시 시도할지 아니면 등록을 할지 선택하여 메시지를 서버에게 전송한다. 서버는 수신한 메시지를 loginMsg에 저장하고 메시지에 따라 code를 4나 5를 return 한다.
+
+        ```python
+        elif loginCode[code] == 'WrongPw' : # PW가 잘못된 경우
+            loginMsg = connectionSocket.recv(1024).decode()            
+            
+            if loginMsg == 'Login': # 로그인인 경우
+                code = 4
+            elif loginMsg == 'ChangePw': # 비밀번호 변경인 경우
+                code = 6        
+        ```
+
+        code의 value가 WrongPw인 경우 클라이언트가 로그인을 다시 시도할지 아니면 비밀번호 변경을 할지 선택하여 메시지를 서버에게 전송한다. 서버는 수신한 메시지를 loginMsg에 저장하고 메시지에 따라 code를 4나 6을 return 한다.
+
 
 ### 실행 결과
+
+- **Server.py**<br>
+
+    ![login01](/assets/img/Computer%20Networking/22-05-03-socket_programming/login01.PNG)<br>
+
+    서버가 클라이언트의 TCP 연결 요청을 받을 준비가 되면 위와 같이 출력한다.
+
+- **Clinet.py**<br>
+
+    ![login02](/assets/img/Computer%20Networking/22-05-03-socket_programming/login02.PNG)<br>
+
+    클라이언트가 서버와 연결되면 먼저 로그인을 할 것인지 등록을 할 것인지 선택해야 한다. 등록한 id가 없으므로 등록하기 위해 2를 입력한다.<br>
+
+    ![lgoin03](/assets/img/Computer%20Networking/22-05-03-socket_programming/login03.PNG)<br>
+
+    id는 heojun, pw는 1234로 입력한 후 등록이 성공했다는 출력문이 나온다.<br>
+
+    ![login04](/assets/img/Computer%20Networking/22-05-03-socket_programming/login04.PNG)<br>
+
+    로그인을 시도하게 되는데 id는 heojun, pw는 1234가 아닌 틀린 비밀번호 12345를 입력한다. pw가 틀렸다고 출력된다.<br>
+
+    ![login05](/assets/img/Computer%20Networking/22-05-03-socket_programming/login05.PNG)<br>
+
+    새로운 pw를 12345로 입력하고 다시 입력할 때 다른 pw인 12346을 입력한다. 다시 입력한 pw가 다르다고 출력되고 pw를 다시 입력하게 한다. 다시 입력할 땐 pw를 12345로 똑같이 입력한다. pw가 성공적으로 변경됐다고 출력된다.<br>
+
+    ![login06](/assets/img/Computer%20Networking/22-05-03-socket_programming/login06.PNG)<br>
+
+    로그인 시도하게 된다. 이 때 등록하지 않는 id인 dankook을 입력한다. 잘못된 id라고 출력된다.<br>
+
+    ![login07](/assets/img/Computer%20Networking/22-05-03-socket_programming/login07.PNG)<br>
+
+    2를 선택하여 등록을 선택한다. dankook id를 입력하여 등록한다. 성공적으로 등록됐다고 출력된다.<br>
+
+    ![login08](/assets/img/Computer%20Networking/22-05-03-socket_programming/login08.PNG)<br>
+
+    로그인을 시도하는데 id를 dankook, pw를 1234로 입력한다. 로그인이 성공했다고 출력된다.<br>
+
+    ![login09](/assets/img/Computer%20Networking/22-05-03-socket_programming/login09.PNG)<br>
+
+    다시 로그인을 시도한다. id를 dankook55로 입력하여 잘못된 id라고 출력된다.<br>
+
+    ![login10](/assets/img/Computer%20Networking/22-05-03-socket_programming/login10.PNG)<br>
+
+    등록을 시도하는데 가장 처음 등록했던 id인 heojun을 입력한다. 중복된 id라고 출력된다. 두 번째로 등록했던 id인 dankook을 입력해도 중복된 id라고 출력된다. 32197720을 새로운 id로 등록한다. 성공적으로 등록됐다고 출력된다.<br>
+
+    ![login11](/assets/img/Computer%20Networking/22-05-03-socket_programming/login11.PNG)<br>
+
+    id를 heojun, pw를 12345로 입력한 후 로그인이 성공했다고 출력된다.<br>
+
+    ![login12](/assets/img/Computer%20Networking/22-05-03-socket_programming/login12.PNG)<br>
+
+    id를 32197720, pw를 1234로 입력한다. 로그인이 성공했다고 출력된다.<br>
