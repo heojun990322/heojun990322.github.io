@@ -147,6 +147,32 @@ title: "파이썬을 이용한 TCP 소켓 프로그래밍"
 
 ### 실행 결과
 
+- **Server.py**<br>
+    ![exe01](/assets/img/Computer%20Networking/22-05-03-socket_programming/exe01.PNG)<br>
+
+    서버를 실행시키면 서버는 TCP 연결 요청을 받을 준비를 하고 받을 준비가 됐을 때 위와 같이 출력한다.
+
+- **Client.py**<br>
+
+    1. 소문자 문자열 입력<br>
+        ![exe02](/assets/img/Computer%20Networking/22-05-03-socket_programming/exe02.PNG)<br>
+
+        소문자로 이루어진 'hi'라는 문자열을 입력하면 서버가 대문자로 수정한 'HI'를 전송한다.
+
+    2. 대문자 문자열 입력<br>
+        ![exe03](/assets/img/Computer%20Networking/22-05-03-socket_programming/exe03.PNG)<br>
+
+        대문자로 이루어진 'HI'라는 문자열을 입력하면 서버가 소문자로 수정한 'hi'를 전송한다.
+
+    3. 대소문자 문자열 입력<br>
+        ![exe04](/assets/img/Computer%20Networking/22-05-03-socket_programming/exe04.PNG)<br>
+
+        대소문자로 이루어진 문자열 'Hi'를 입력하면 대소문자 중 무엇으로 변환할지 선택한다. 1번을 선택한 경우 위와 같이 서버는 대문자로 수정하여 'HI'를 전송한다.<br>
+
+        ![exe05](/assets/img/Computer%20Networking/22-05-03-socket_programming/exe05.PNG)<br>
+
+        2번을 선택한 경우에는 서버는 소문자로 수정하여 'hi'를 전송한다.
+
 ## 로그인
 
 ### 개요
